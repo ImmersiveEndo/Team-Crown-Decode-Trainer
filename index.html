@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Team Crown - Decore Trainer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
+        
+        /* HUD */
+        .hud-top { display: flex; justify-content: space-between; padding: 20px; color: #eeeeee; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); text-shadow: 0 0 5px rgba(255,255,255,0.2); }
+        .pattern-dots { display: flex; gap: 10px; margin-top: 5px; }
+        .dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #ddd; }
+        .bg-green { background-color: #00cc66; box-shadow: 0 0 8px #00cc66; }
+        .bg-purple { background-color: #9933cc; box-shadow: 0 0 8px #9933cc; }
+        .timer-box { font-size: 48px; font-weight: 800; color: #e0e0e0; }
+        .score-box { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+        .score-label { font-size: 14px; font-weight: 700; color: #aaa; letter-spacing: 2px; text-transform: uppercase; }
+        .score-val { font-size: 50px; font-weight: 900; color: #fff; line-height: 1; margin-top: 5px; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+
+        .controls { display: flex; justify-content: center; gap: 20px; padding-bottom: 30px; pointer-events: auto; }
+        button.game-btn { padding: 20px 40px; font-size: 20px; font-weight: bold; cursor: pointer; background: #333; color: #fff; border: 2px solid #555; border-radius: 10px; box-shadow: 0 5px 0 #111; transition: all 0.1s; }
+        button.game-btn:hover { background: #444; border-color: #777; }
+        button.game-btn:active { transform: translateY(5px); box-shadow: none; }
+
+        /* Overlays */
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; pointer-events: auto; backdrop-filter: blur(5px); overflow: hidden; }
+        .title-box { border: 4px double #ccc; padding: 30px 60px; margin-bottom: 30px; background: rgba(20,20,20,0.8); transform: skew(-10deg); box-shadow: 0 0 20px rgba(255,255,255,0.1); z-index: 2; }
+        .title-text { font-size: 50px; font-weight: 900; color: #fff; text-transform: uppercase; margin: 0; transform: skew(10deg); letter-spacing: 2px; }
+        .menu-btn { padding: 15px 40px; font-size: 24px; font-weight: bold; margin: 10px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0 #0056b3; transition: transform 0.1s; z-index: 2; }
+        .menu-btn:hover { background: #0069d9; }
+        .btn-secondary { background: #555; box-shadow: 0 4px 0 #333; }
+        .btn-secondary:hover { background: #666; }
+        .btn-danger { background: #d9534f; box-shadow: 0 4px 0 #c9302c; font-size: 14px; padding: 10px 20px; margin-top: 20px; z-index: 2;}
+        .btn-danger:hover { background: #c9302c; }
+        .social-bar { display: flex; gap: 15px; margin-top: 20px; z-index: 2; }
+        .social-btn { padding: 10px 20px; font-size: 14px; font-weight: bold; background: transparent; border: 2px solid #aaa; color: #aaa; border-radius: 20px; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .social-btn:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.1); }
+        #info-modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60%; max-width: 600px; background: #222; border: 2px solid #555; padding: 30px; z-index: 30; color: #eee; border-radius: 10px; box-shadow: 0 0 50px rgba(0,0,0,0.9); }
+        
+        .tech-corner-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        .tech-corner { position: absolute; width: 120px; height: 120px; opacity: 0.8; }
+        .tc-tl { top: 20px; left: 20px; border-top: 3px solid #eee; border-left: 3px solid #888; } .tc-tl::after { content: ''; position: absolute; top: 10px; left: 10px; width: 70%; height: 70%; border-top: 1px solid #888; border-left: 1px solid #eee; }
+        .tc-tr { top: 20px; right: 20px; border-top: 3px solid #888; border-right: 3px solid #eee; } .tc-tr::after { content: ''; position: absolute; top: 10px; right: 10px; width: 70%; height: 70%; border-top: 1px solid #eee; border-right: 1px solid #888; }
+        .tc-bl { bottom: 20px; left: 20px; border-bottom: 3px solid #888; border-left: 3px solid #eee; } .tc-bl::after { content: ''; position: absolute; bottom: 10px; left: 10px; width: 70%; height: 70%; border-bottom: 1px solid #eee; border-left: 1px solid #888; }
+        .tc-br { bottom: 20px; right: 20px; border-bottom: 3px solid #eee; border-right: 3px solid #888; } .tc-br::after { content: ''; position: absolute; bottom: 10px; right: 10px; width: 70%; height: 70%; border-bottom: 1px solid #888; border-right: 1px solid #eee; }
+        
+        input.team-input { padding: 15px; font-size: 24px; text-align: center; border-radius: 8px; border: none; margin-bottom: 20px; width: 300px; font-weight: bold; color: #333; z-index: 2; }
+        table.leaderboard-table { width: 80%; max-width: 600px; margin-bottom: 30px; border-collapse: collapse; font-size: 20px; z-index: 2; }
+        table.leaderboard-table th { border-bottom: 2px solid #fff; padding: 10px; text-align: left; color: #ffd700; }
+        table.leaderboard-table td { border-bottom: 1px solid #555; padding: 10px; text-align: left; }
+        table.leaderboard-table tr:first-child td { color: #ffd700; font-weight: bold; font-size: 24px; }
+    </style>
+</head>
+<body>
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div style="text-align:center"><span>MOTIF</span><div class="pattern-dots" id="pattern-display"></div></div>
+            <div class="timer-box" id="timer">60.0</div>
+            <div class="score-box"><div class="score-label">SCORE</div><div class="score-val" id="score">0</div></div>
+        </div>
+        <div class="controls">
+            <button class="game-btn" onclick="launchBall(0)">LEFT</button>
+            <button class="game-btn" onclick="launchBall(1)">MID</button>
+            <button class="game-btn" onclick="launchBall(2)">RIGHT</button>
+        </div>
+    </div>
+
+    <div id="menu-screen" class="overlay">
+        <div class="tech-corner-container"><div class="tech-corner tc-tl"></div><div class="tech-corner tc-tr"></div><div class="tech-corner tc-bl"></div><div class="tech-corner tc-br"></div></div>
+        <div class="title-box"><h1 class="title-text">Team Crown's<br>Decode Trainer</h1></div>
+        <div style="z-index:2"><button class="menu-btn" onclick="startGame()">START GAME</button><button class="menu-btn btn-secondary" onclick="showLeaderboard()">LEADERBOARD</button><button class="menu-btn btn-secondary" onclick="openRules()">RULES</button></div>
+        <div class="social-bar"><a href="https://www.firstinspires.org/robotics/ftc/game-and-season" target="_blank" class="social-btn">FTC RULES</a><a href="https://crownftc.netlify.app/" target="_blank" class="social-btn">TEAM WEBSITE</a></div>
+    </div>
+
+    <div id="pause-screen" class="overlay" style="display: none;">
+        <div class="tech-corner-container"><div class="tech-corner tc-tl"></div><div class="tech-corner tc-tr"></div><div class="tech-corner tc-bl"></div><div class="tech-corner tc-br"></div></div>
+        <div class="title-box"><h1 class="title-text">PAUSED</h1></div>
+        <div style="z-index:2; display:flex; gap:10px;"><button class="menu-btn" onclick="togglePause()">RESUME</button><button class="menu-btn btn-secondary" onclick="startGame()">REPLAY</button><button class="menu-btn btn-secondary" onclick="showMenu()">MENU</button></div>
+    </div>
+
+    <div id="end-screen" class="overlay" style="display: none;">
+        <div class="tech-corner-container"><div class="tech-corner tc-tl"></div><div class="tech-corner tc-tr"></div><div class="tech-corner tc-bl"></div><div class="tech-corner tc-br"></div></div>
+        <div class="title-box" style="border-color: #ff4444;"><h1 class="title-text" style="color: #ff4444;">TIME UP</h1></div>
+        <div style="text-align: center; margin-bottom: 20px; z-index:2"><h2 style="font-size: 40px; margin: 10px 0;">Score: <span id="final-score" style="color: #00cc66;">0</span></h2></div>
+        <input type="text" id="team-name-input" class="team-input" placeholder="Enter Team Name/Number" maxlength="15">
+        <div style="z-index:2; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <button class="menu-btn" onclick="submitScore()">SUBMIT SCORE</button>
+            <div style="display: flex; gap: 10px;"><button class="menu-btn btn-secondary" onclick="startGame()">REPLAY</button><button class="menu-btn btn-secondary" onclick="showMenu()">BACK TO MENU</button></div>
+        </div>
+    </div>
+
+    <div id="leaderboard-screen" class="overlay" style="display: none;">
+        <div class="tech-corner-container"><div class="tech-corner tc-tl"></div><div class="tech-corner tc-tr"></div><div class="tech-corner tc-bl"></div><div class="tech-corner tc-br"></div></div>
+        <h1 style="color: #ffd700; margin-bottom: 20px; z-index:2">TOP SCORES</h1>
+        <table class="leaderboard-table" id="leaderboard-body"></table>
+        <div style="z-index:2"><button class="menu-btn" onclick="showMenu()">BACK TO MENU</button></div>
+        <button class="btn-danger" onclick="clearScores()">RESET LEADERBOARD</button>
+    </div>
+
+    <div id="info-modal">
+        <h2 style="color: #fff; border-bottom: 1px solid #555; padding-bottom: 10px;">How to Play</h2>
+        <ul style="font-size: 18px; line-height: 1.6;"><li><strong>Objective:</strong> Launch balls to fill the blue ramp matching the target <strong>Motif</strong>.</li><li><strong>Motif:</strong> Look at the top-left. It will always contain 1 Green and 2 Purples.</li><li><strong>Controls:</strong> Buttons to launch. <strong>ESC</strong> to Pause.</li></ul>
+        <div style="text-align: center;"><button class="menu-btn btn-secondary" style="font-size: 16px; padding: 10px 20px;" onclick="closeRules()">CLOSE</button></div>
+    </div>
+
+    <script>
+        const COLORS = { blue: 0x0044aa, green: 0x00cc66, purple: 0x9933cc, red: 0xaa0000, steel: 0xaaaaaa, floor: 0x1a1a1a, robot: 0x224488, wall: 0x444444 };
+        const RAMP_CAPACITY = 9; const GAME_DURATION = 60;
+        const RAMP_TOP = new THREE.Vector3(-10.5, 3.6, -5.5);
+        const RAMP_BOTTOM = new THREE.Vector3(-10.5, 0.45, 6.8);
+        
+        let scene, camera, renderer, ballsOnRamp=[], rampData=[], robotBalls=[null,null,null], robotData=['','',''];
+        let targetPattern=[], animations=[], crowd=[], confetti=[], robotGroup;
+        let score=0, timeLeft=GAME_DURATION, gameActive=false, gamePaused=false, launchTimestamps=[], lastLaunchTime=0;
+
+        document.addEventListener('keydown', (e) => { if(e.key === "Escape" && gameActive) togglePause(); });
+        function togglePause() { if(!gameActive) return; gamePaused = !gamePaused; document.getElementById('pause-screen').style.display = gamePaused ? 'flex' : 'none'; if(!gamePaused) lastLaunchTime = Date.now(); }
+        function getScores() { const s = localStorage.getItem('ftc_decode_scores'); return s ? JSON.parse(s) : []; }
+        function saveScoreLocal(name, score) { const scores = getScores(); scores.push({ name: name || "Anonymous", score: parseInt(score), date: new Date().toLocaleDateString() }); scores.sort((a, b) => b.score - a.score); localStorage.setItem('ftc_decode_scores', JSON.stringify(scores.slice(0, 10))); }
+        window.submitScore = function() { const name = document.getElementById('team-name-input').value.trim(); if(!name) { alert("Please enter a name!"); return; } saveScoreLocal(name, score); showLeaderboard(); };
+        window.showLeaderboard = function() { document.getElementById('menu-screen').style.display='none'; document.getElementById('end-screen').style.display='none'; document.getElementById('leaderboard-screen').style.display='flex'; const tbody = document.getElementById('leaderboard-body'); tbody.innerHTML = '<tr><th>RANK</th><th>TEAM</th><th>SCORE</th></tr>'; const scores = getScores(); if(scores.length === 0) tbody.innerHTML += '<tr><td colspan="3" style="text-align:center; color:#777;">No scores yet!</td></tr>'; else scores.forEach((s, i) => tbody.innerHTML += `<tr><td>#${i+1}</td><td>${s.name}</td><td>${s.score}</td></tr>`); };
+        window.clearScores = function() { if(confirm("Delete scores?")) { localStorage.removeItem('ftc_decode_scores'); showLeaderboard(); } };
+        window.startGame = function() { if(!scene) return; document.getElementById('menu-screen').style.display='none'; document.getElementById('end-screen').style.display='none'; document.getElementById('leaderboard-screen').style.display='none'; document.getElementById('pause-screen').style.display='none'; score = 0; timeLeft = GAME_DURATION; gameActive = true; gamePaused=false; document.getElementById('score').innerText = '0'; document.getElementById('team-name-input').value = ''; launchTimestamps = []; lastLaunchTime = 0; ballsOnRamp.forEach(b=>scene.remove(b)); robotBalls.forEach(b=>{if(b)scene.remove(b)}); ballsOnRamp=[]; rampData=[]; robotBalls=[null,null,null]; generatePattern(); replenishRobotBall(0); replenishRobotBall(1); replenishRobotBall(2); };
+        window.openRules = function() { document.getElementById('info-modal').style.display='block'; }; window.closeRules = function() { document.getElementById('info-modal').style.display='none'; };
+        window.showMenu = function() { document.getElementById('end-screen').style.display='none'; document.getElementById('leaderboard-screen').style.display='none'; document.getElementById('pause-screen').style.display='none'; document.getElementById('menu-screen').style.display='flex'; };
+        
+        window.launchBall = function(idx) { 
+            if(!gameActive || gamePaused || !robotBalls[idx]) return; 
+            const now = Date.now(); if(lastLaunchTime>0) launchTimestamps.push((now - lastLaunchTime)/1000); lastLaunchTime = now; 
+            const ball = robotBalls[idx], type = robotData[idx]; robotBalls[idx] = null; robotData[idx] = ''; 
+            const cat = robotGroup.children.find(c => c.name===`cat_${idx}`); if(cat) animations.push({type:'recoil', obj:cat, base:1.6, t:0}); 
+            const p0 = ball.position.clone(); 
+            const p2 = new THREE.Vector3(-9, 9, -9); 
+            const p1 = p0.clone().lerp(p2, 0.5).add(new THREE.Vector3(0, 8, 0)); 
+            animations.push({type:'fly', obj:ball, p0:p0, p1:p1, p2:p2, t:0, color:type}); 
+            setTimeout(function(){ replenishRobotBall(idx); }, 500); 
+        };
+        
+        window.onload = function() { if (typeof THREE !== 'undefined') initGame(); else alert("Error: 3D Engine failed to load."); };
+
+        function initGame() {
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x111111);
+            const aspect = window.innerWidth / window.innerHeight; camera = new THREE.PerspectiveCamera(30, aspect, 0.1, 1000); camera.position.set(50, 50, 50); camera.lookAt(0, 0, 0);
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; document.body.appendChild(renderer.domElement);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6)); const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(20, 40, 20); dir.castShadow = true; scene.add(dir);
+            createFloorAndWalls(); createHollowFunnel(); createRamp(); createRedProps(); createRobot(); createEnhancedCrowd(); createConfetti(); createGroundBanners();
+            generatePattern(); replenishRobotBall(0); replenishRobotBall(1); replenishRobotBall(2); animate();
+        }
+
+        function createFloorAndWalls() {
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({ color: COLORS.floor })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0,0,512,256); ctx.fillStyle = '#ffffff'; ctx.font = "italic 900 100px Arial"; ctx.textAlign = "center"; ctx.textBaseline="middle"; ctx.fillText("FIRST", 256, 128);
+            const tex = new THREE.CanvasTexture(canvas); const logoPlane = new THREE.Mesh(new THREE.PlaneGeometry(20, 10), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.3 })); logoPlane.rotation.x = -Math.PI/2; logoPlane.position.y = 0.05; scene.add(logoPlane);
+            
+            // SQUARE (V42)
+            const sqGeo = new THREE.PlaneGeometry(29, 29); 
+            const sqMat = new THREE.MeshBasicMaterial({ color: 0x272727, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+            const square = new THREE.Mesh(sqGeo, sqMat); 
+            square.rotation.x = -Math.PI/2; square.position.set(2, 0.02, 2); scene.add(square);
+            
+
+            // --- CHANGED: TRANSPARENT WALLS ---
+            const wMat = new THREE.MeshStandardMaterial({ color: COLORS.wall, transparent: true, opacity: 0.5 });
+            const w1 = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 0.5), wMat); w1.position.set(2, 1, -12); scene.add(w1);
+            const w2 = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 0.5), wMat); w2.position.set(2, 1, 16); scene.add(w2);
+            const w3 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2, 28), wMat); w3.position.set(-12, 1, 2); scene.add(w3);
+            const w4 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2, 28), wMat); w4.position.set(16, 1, 2); scene.add(w4);
+            // --------------------------------------------------------------------------
+
+            const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 6); const flagGeo = new THREE.PlaneGeometry(3, 4); const poleMat = new THREE.MeshStandardMaterial({color: 0x999999}); const flagMat = new THREE.MeshStandardMaterial({color: 0x0044aa, side: THREE.DoubleSide});
+            [{x:-12,z:-12}, {x:16,z:-12}, {x:-12,z:16}, {x:16,z:16}].forEach(pos => { const p = new THREE.Mesh(poleGeo, poleMat); p.position.set(pos.x, 3, pos.z); scene.add(p); const f = new THREE.Mesh(flagGeo, flagMat); f.position.set(pos.x, 4, pos.z); f.rotation.y = Math.PI/4; scene.add(f); });
+        }
+
+        function createGroundBanners() {
+            const ftcTex = createTextTexture("FIRST TECH CHALLENGE", 50); const decodeTex = createTextTexture("DECODE", 80);
+            const boardGeo = new THREE.PlaneGeometry(40, 3); const ftcMat = new THREE.MeshBasicMaterial({map: ftcTex, side: THREE.DoubleSide, transparent:true}); const decMat = new THREE.MeshBasicMaterial({map: decodeTex, side: THREE.DoubleSide, transparent:true});
+            const b1 = new THREE.Mesh(boardGeo, ftcMat); b1.position.set(0, 2.5, -40); scene.add(b1);
+            const b2 = new THREE.Mesh(boardGeo, decMat); b2.position.set(-40, 2.5, 0); b2.rotation.y = Math.PI/2; scene.add(b2);
+        }
+        function createTextTexture(text, fontSize) { const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 128; const ctx = canvas.getContext('2d'); ctx.fillStyle = 'rgba(0,0,80,0.9)'; ctx.fillRect(0,0,1024,128); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.strokeRect(5,5,1014,118); ctx.fillStyle = '#ffffff'; ctx.font = `900 ${fontSize}px Arial`; ctx.textAlign = "center"; ctx.textBaseline="middle"; ctx.fillText(text, 512, 64); return new THREE.CanvasTexture(canvas); }
+
+        function createHollowFunnel() { const fGrp = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: COLORS.blue, side: THREE.DoubleSide }); buildFunnelGeometry(fGrp, mat); fGrp.position.set(-9, 0, -9); scene.add(fGrp); }
+        
+        function createRamp() { 
+            const rGrp = new THREE.Group(); const rMat = new THREE.MeshStandardMaterial({ color: COLORS.blue }); 
+            const base = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 14), rMat); base.rotation.x = Math.PI / 12; base.position.set(0, 3, 6); rGrp.add(base); 
+            // GUARD PIPES
+            const gMat = new THREE.MeshStandardMaterial({ color: COLORS.steel }); const sideGeo = new THREE.CylinderGeometry(0.05, 0.05, 14, 8); const stopGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.2, 8);
+            const lg = new THREE.Mesh(sideGeo, gMat); lg.rotation.x = Math.PI/2; lg.position.set(-0.6, 0.65, 0); base.add(lg);
+            const rg = new THREE.Mesh(sideGeo, gMat); rg.rotation.x = Math.PI/2; rg.position.set(0.6, 0.65, 0); base.add(rg);
+            const st = new THREE.Mesh(stopGeo, gMat); st.rotation.z = Math.PI/2; st.position.set(0, 0.65, 6.8); base.add(st);
+            // V42 NEW POS
+            rGrp.position.set(-10.5, -1.0, -9); scene.add(rGrp); 
+        }
+
+        // V42 MIRROR RED
+        function createRedProps() { 
+            const redGrp = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: COLORS.red, side: THREE.DoubleSide }); 
+            // Funnel
+            const fGrp = new THREE.Group(); buildFunnelGeometry(fGrp, mat); fGrp.position.set(-9, 0, -9); redGrp.add(fGrp); 
+            // Ramp
+            const rGrp = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 14), mat); base.rotation.x = Math.PI / 12; base.position.set(0, 3, 6); rGrp.add(base); 
+            // Guard Pipes
+            const gMat = new THREE.MeshStandardMaterial({ color: COLORS.steel }); const sideGeo = new THREE.CylinderGeometry(0.05, 0.05, 14, 8); const stopGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.2, 8);
+            const lg = new THREE.Mesh(sideGeo, gMat); lg.rotation.x = Math.PI/2; lg.position.set(-0.6, 0.65, 0); base.add(lg);
+            const rg = new THREE.Mesh(sideGeo, gMat); rg.rotation.x = Math.PI/2; rg.position.set(0.6, 0.65, 0); base.add(rg);
+            const st = new THREE.Mesh(stopGeo, gMat); st.rotation.z = Math.PI/2; st.position.set(0, 0.65, 6.8); base.add(st);
+            rGrp.position.set(-10.5, -1.0, -9); redGrp.add(rGrp); 
+            
+            // Mirror Logic: Blue is ~X=-9. Arena Center X=2. Dist=11. Red X=13. 
+            // Transform: Scale X-1, Pos X+4.
+            redGrp.scale.set(-1, 1, 1); redGrp.position.set(4, 0, 0); scene.add(redGrp); 
+        }
+
+        function buildFunnelGeometry(grp, mat) { 
+            const h=8, w=3, t=0.2, peakHeight=3; 
+            const backShape = new THREE.Shape(); backShape.moveTo(-w, 0); backShape.lineTo(w, 0); backShape.lineTo(w, h); backShape.lineTo(-w, h+peakHeight); backShape.lineTo(-w, 0); const back = new THREE.Mesh(new THREE.ExtrudeGeometry(backShape, {depth:t, bevelEnabled:false}), mat); back.position.set(0,0,-w); grp.add(back); 
+            const leftShape = new THREE.Shape(); leftShape.moveTo(w,0); leftShape.lineTo(-w,0); leftShape.lineTo(-w,h+peakHeight); leftShape.lineTo(w,h); leftShape.lineTo(w,0); const left = new THREE.Mesh(new THREE.ExtrudeGeometry(leftShape, {depth:t, bevelEnabled:false}), mat); left.rotation.y = -Math.PI/2; left.position.set(-w,0,0); grp.add(left); 
+            const right = new THREE.Mesh(new THREE.BoxGeometry(t,h,2), mat); right.position.set(w,h/2,-w+1); grp.add(right); 
+            const front = new THREE.Mesh(new THREE.BoxGeometry(2,h,t), mat); front.position.set(-w+1,h/2,w); grp.add(front); 
+            const diag = new THREE.Mesh(new THREE.BoxGeometry(6,h,t), mat); diag.position.set(1,h/2,1); diag.rotation.y = Math.PI/4; grp.add(diag); 
+        }
+
+        function createRobot() {
+            robotGroup = new THREE.Group(); robotGroup.add(new THREE.Mesh(new THREE.BoxGeometry(2.5, 1, 2.5), new THREE.MeshStandardMaterial({ color: COLORS.robot })).translateY(1));
+            // Wheels
+            const wGeo = new THREE.CylinderGeometry(1, 1, 0.5, 16); const wMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            [{x:1.6,z:1},{x:1.6,z:-1},{x:-1.6,z:1},{x:-1.6,z:-1}].forEach(p => { const w=new THREE.Mesh(wGeo,wMat); w.rotation.z=Math.PI/2; w.position.set(p.x,1,p.z); robotGroup.add(w); });
+            const cMat = new THREE.MeshStandardMaterial({color:0x888888}); const cGeo = new THREE.BoxGeometry(0.8, 0.2, 0.8); 
+            const c1=new THREE.Mesh(cGeo,cMat); c1.position.set(1, 1.6, 0); c1.name="cat_0"; robotGroup.add(c1); const c2=new THREE.Mesh(cGeo,cMat); c2.position.set(0, 1.6, 0); c2.name="cat_1"; robotGroup.add(c2); const c3=new THREE.Mesh(cGeo,cMat); c3.position.set(-1, 1.6, 0); c3.name="cat_2"; robotGroup.add(c3);
+            robotGroup.position.set(8, 0, 8); robotGroup.lookAt(-6, 5, -6); scene.add(robotGroup);
+        }
+
+        function createEnhancedCrowd() {
+            const bGeo=new THREE.CylinderGeometry(0.8,0.8,2.5,8); const hGeo=new THREE.SphereGeometry(0.8,8,8); const colors=[0xff0000,0x00ff00,0x0000ff,0xffff00,0xff00ff,0x00ffff];
+            for(let i=0; i<100; i++){ const grp=new THREE.Group(); const mat=new THREE.MeshStandardMaterial({color:colors[Math.floor(Math.random()*colors.length)]}); grp.add(new THREE.Mesh(bGeo,mat)); grp.add(new THREE.Mesh(hGeo,mat).translateY(1.8)); 
+            const a=Math.random()*Math.PI*2; 
+            // V42 CLOSER CROWD (radius 22-30)
+            const r=23+Math.random()*12; 
+            grp.position.set(2 + Math.cos(a)*r, 1.25, 2 + Math.sin(a)*r); grp.userData={speed:2+Math.random()*4, offset:Math.random()*10}; scene.add(grp); crowd.push(grp); }
+        }
+        function createConfetti() { const geo=new THREE.PlaneGeometry(0.5,0.5); for(let i=0; i<50; i++){ const p=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:Math.random()*0xffffff,side:THREE.DoubleSide})); p.position.set((Math.random()-0.5)*80, 20+Math.random()*20, (Math.random()-0.5)*80); p.userData={vy:0.1+Math.random()*0.2, rx:Math.random()*0.1, rz:Math.random()*0.1}; scene.add(p); confetti.push(p); } }
+        function generatePattern() { targetPattern = ['P', 'P', 'P']; targetPattern[Math.floor(Math.random() * 3)] = 'G'; const el = document.getElementById('pattern-display'); el.innerHTML=''; targetPattern.forEach(t=>{ const d=document.createElement('div'); d.className=`dot ${t==='G'?'bg-green':'bg-purple'}`; el.appendChild(d); }); }
+        function replenishRobotBall(idx) { let cur = [...robotData]; cur[idx]=null; const existing=cur.filter(c=>c); let next=''; if(existing.length===2) { if(!existing.includes('G')) next='G'; else if(!existing.includes('P')) next='P'; else next = Math.random()>0.5?'G':'P'; } else next = Math.random()>0.5?'G':'P'; const ball = new THREE.Mesh(new THREE.SphereGeometry(0.4,16,16), new THREE.MeshStandardMaterial({color: next==='G'?COLORS.green:COLORS.purple})); const off = new THREE.Vector3(); if(idx===0) off.set(1, 2, 0); if(idx===1) off.set(0, 2, 0); if(idx===2) off.set(-1, 2, 0); ball.position.copy(robotGroup.localToWorld(off.clone())); ball.scale.set(0.01,0.01,0.01); scene.add(ball); robotBalls[idx] = ball; robotData[idx] = next; animations.push({type:'scale', obj:ball, target:1, speed:5}); }
+        
+        function addToRamp(ball, type) { 
+            if(rampData.length >= 9) { scene.remove(ball); return; } 
+            rampData.push(type); ballsOnRamp.push(ball); 
+            const slot = rampData.length - 1; 
+            // V42 NEW PHYSICS
+            const startPos = new THREE.Vector3(-9, 4.0, -6.5); // Approx top
+            const endPos = new THREE.Vector3(-10.5, 0.5, 7.0); // Approx bottom
+            const t = 1 - (slot / 10); 
+            const target = new THREE.Vector3().lerpVectors(endPos, startPos, t);
+            
+            // Adjust visual Z
+            const zFactor = 3.0 - (slot * 0.9);
+            const yFactor = 2.0 - (zFactor * 0.26);
+            
+            ball.position.set(-9, 9, -9); // Fly Target
+            animations.push({type:'roll', obj:ball, target:new THREE.Vector3(-10.5, yFactor, zFactor), speed:0.15}); 
+            if(rampData.length === 9) setTimeout(scoreRamp, 1000); 
+        }
+        function scoreRamp() { let m=0; for(let b=0; b<3; b++) for(let k=0; k<3; k++) if(rampData[(b*3)+k] === targetPattern[k]) m++; score += (5 * m) + (3 * (9-m)); document.getElementById('score').innerText = score; setTimeout(function() { ballsOnRamp.forEach(b=>{ animations.push({type:'drop', obj:b, vel:0}); }); ballsOnRamp=[]; rampData=[]; generatePattern(); }, 500); }
+        function endGame() { gameActive = false; document.getElementById('end-screen').style.display='flex'; document.getElementById('final-score').innerText = score; }
+
+        function animate() { requestAnimationFrame(animate); const dt = 0.016, time = Date.now()*0.001; 
+            if(!gamePaused) {
+                crowd.forEach(p=>{ p.position.y = 1.25 + Math.sin(time*p.userData.speed + p.userData.offset)*0.5; }); confetti.forEach(p=>{ p.position.y -= p.userData.vy; p.rotation.x += p.userData.rx; p.rotation.z += p.userData.rz; if(p.position.y < 0) p.position.y = 20 + Math.random()*10; }); if(gameActive) { timeLeft -= dt; if(timeLeft <= 0) { timeLeft=0; endGame(); } document.getElementById('timer').innerText = timeLeft.toFixed(1); } for(let i=animations.length-1; i>=0; i--) { const a = animations[i]; if(a.type==='scale') { a.obj.scale.addScalar(dt*a.speed); if(a.obj.scale.x>=a.target) { a.obj.scale.setScalar(a.target); animations.splice(i,1); } } else if(a.type==='recoil') { a.t+=dt*10; a.obj.position.y = a.base - Math.sin(a.t)*0.2; if(a.t>=Math.PI) { a.obj.position.y=a.base; animations.splice(i,1); } } else if(a.type==='fly') { a.t+=dt*1.5; if(a.t>=1) { addToRamp(a.obj, a.color); animations.splice(i,1); } else { a.obj.position.lerpVectors(new THREE.Vector3().lerpVectors(a.p0,a.p1,a.t), new THREE.Vector3().lerpVectors(a.p1,a.p2,a.t), a.t); } } else if(a.type==='roll') { a.obj.position.lerp(a.target, 0.1); if(a.obj.position.distanceTo(a.target)<0.1) { a.obj.position.copy(a.target); animations.splice(i,1); } } else if(a.type==='drop') { a.vel -= 0.02; a.obj.position.y+=a.vel; if(a.obj.position.y<-10) { scene.remove(a.obj); animations.splice(i,1); } } } 
+            }
+            if(renderer && scene && camera) renderer.render(scene, camera); 
+        }
+    </script>
+</body>
+</html>
